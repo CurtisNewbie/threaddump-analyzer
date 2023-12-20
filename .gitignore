@@ -24,3 +24,5 @@ dump.txt
 dump_report.txt
 out.log
 threaddump-analyzer
+threaddump-analyzer-amd64-linux
+threaddump-analyzer-arm64-macos
