@@ -292,10 +292,13 @@ func StackOutput(stack *Stack) string {
 	}
 
 	// stack summary
-	var output = StackSummary(stack)
+	var output = "Summary:\n\n"
+	output += StackSummary(stack)
+	output += "------------------------------------\n\n"
 
 	// thread briefs
 	SortThreads(stack.Threads)
+	output += "Threads:\n\n"
 	for i, t := range stack.Threads {
 		output += fmt.Sprintf("%-4d ", i+1)
 		output += ThreadBrief(t)
@@ -403,15 +406,32 @@ func StackSummary(stack *Stack) string {
 		}
 	}
 
-	added := false
+	type PercentGroup struct {
+		Percent float64
+		Desc    string
+	}
+
+	grouped := []PercentGroup{}
 	for k, v := range group {
 		cnt := len(v)
 		if cnt > 1 {
-			out += fmt.Sprintf("%-40s: has %d threads with similar names\n", k, cnt)
-			added = true
+			percent := float64(cnt) / float64(len(stack.Threads)) * 100
+			grouped = append(grouped, PercentGroup{
+				Percent: percent,
+				Desc:    fmt.Sprintf("\t%-40s: has %-3d threads with similar names (%.2f%%)", k, cnt, percent),
+			})
 		}
 	}
-	if added {
+
+	sort.SliceStable(grouped, func(i, j int) bool {
+		return grouped[i].Percent > grouped[j].Percent
+	})
+
+	for _, g := range grouped {
+		out += g.Desc
+		out += "\n"
+	}
+	if len(grouped) > 0 {
 		out += "\n"
 	}
 	return out
@@ -420,11 +440,11 @@ func StackSummary(stack *Stack) string {
 func ThreadFactoryName(name string) string {
 	r := []rune(name)
 	for i := len(r) - 1; i >= 0; i-- {
-		if r[i] < '0' || r[i] > '9' {
-			return name
-		}
 		if r[i] == '-' {
 			return string(r[:i])
+		}
+		if r[i] < '0' || r[i] > '9' {
+			return name
 		}
 	}
 	return name

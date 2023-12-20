@@ -88,3 +88,12 @@ func TestStackOutput(t *testing.T) {
 	// t.Log(out)
 	os.WriteFile("out.log", []byte(out), os.ModePerm)
 }
+
+func TestThreadFactoryName(t *testing.T) {
+	name := "redisson-3-3"
+	factName := ThreadFactoryName(name)
+	if factName != "redisson-3" {
+		t.Log(factName)
+		t.FailNow()
+	}
+}
