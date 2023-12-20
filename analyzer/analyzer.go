@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -58,10 +59,8 @@ type Thread struct {
 	ClassicalLocksHeld []string
 }
 
-func (t *Thread) AddStackLine(line string) bool {
-	var match string
-
-	match = ExtractOne(`^\s+at (.*)`, line)
+func AddStackLine(t *Thread, line string) bool {
+	var match = ExtractOne(`^\s+at (.*)`, line)
 	if match != "" {
 		t.Frames = append(t.Frames, match)
 		return true
@@ -198,7 +197,7 @@ func ExtractOne(pat string, ctn string) string {
 
 func NewStack(content string) (*Stack, error) {
 
-	stackFile := Stack{Content: content}
+	stack := Stack{Content: content}
 	lines := strings.Split(content, "\n")
 
 	for i := 0; i < len(lines); i++ {
@@ -210,19 +209,20 @@ func NewStack(content string) (*Stack, error) {
 			if i >= len(lines) {
 				break
 			}
-
 			// Replace thread name newline with ", "
 			line += ", " + lines[i]
 		}
 
-		if err := ParseStackLine(&stackFile, line); err != nil {
+		if err := ParseStackLine(&stack, line); err != nil {
 			return nil, fmt.Errorf("failed to ParseStackLine, line: %v, %v", line, err)
 		}
 	}
 
-	// TODO: impl this later
-	// this._identifyWaitedForSynchronizers();
-	return &stackFile, nil
+	for _, t := range stack.Threads {
+		IdentifyWaitedForSynchronizers(t)
+	}
+
+	return &stack, nil
 }
 
 func ParseStackLine(stack *Stack, line string) error {
@@ -241,7 +241,7 @@ func ParseStackLine(stack *Stack, line string) error {
 		// We ignore empty lines, and lines containing only whitespace
 		parsed = true
 	} else if stack.CurrentThread != nil {
-		parsed = stack.CurrentThread.AddStackLine(line)
+		parsed = AddStackLine(stack.CurrentThread, line)
 	}
 	if !parsed {
 		stack.Ignored = append(stack.Ignored, line)
@@ -284,4 +284,98 @@ func ArrayAddUnique(array []string, toAdd string) []string {
 	}
 	array = append(array, toAdd)
 	return array
+}
+
+func StackOutput(stack *Stack) string {
+	if stack == nil || len(stack.Threads) < 1 {
+		return ""
+	}
+	SortThreadsByName(stack.Threads)
+	var output = fmt.Sprintf("%d threads found\n\n", len(stack.Threads))
+	for i, t := range stack.Threads {
+		output += fmt.Sprintf("%d. ", i+1)
+		output += ThreadBrief(t)
+		output += "\n"
+	}
+	return output
+}
+
+func SortThreadsByName(threads []*Thread) {
+	sort.SliceStable(threads, func(i, j int) bool {
+		return strings.Compare(threads[i].Name, threads[j].Name) < 0
+	})
+}
+
+func ThreadBrief(t *Thread) string {
+	var brief = ""
+	if t.Group != "" {
+		brief += t.Group
+	}
+	brief += "\""
+	brief += t.Name
+	brief += "\": "
+	brief += ThreadStatusBrief(t)
+	return brief
+}
+
+func ThreadStatusBrief(t *Thread) string {
+	var s = ""
+
+	if t.WantNotificationOn != "" {
+		s += "awaiting notification on ["
+		s += t.WantNotificationOn
+		s += "]"
+	} else if t.WantToAcquire != "" {
+		s += "waiting to acquire ["
+		s += t.WantToAcquire
+		s += "]"
+	} else if t.ThreadState == "TIMED_WAITING (sleeping)" {
+		s += "sleeping"
+	} else if t.ThreadState == "NEW" {
+		s += "not started"
+	} else if t.ThreadState == "TERMINATED" {
+		s += "terminated"
+	} else if t.ThreadState == "RUNNABLE" {
+		s += "running"
+	} else if t.ThreadState == "" {
+		s += "non-Java thread"
+	} else if len(t.Frames) < 1 {
+		s += "non-Java thread"
+	} else {
+		// FIXME: Write something in the warnings section (that
+		// doesn't exist yet)
+		s += "Thread is "
+		s += t.ThreadState
+		s += " without waiting for anything?"
+	}
+
+	if len(t.LocksHeld) > 0 {
+		s += ", holding ["
+		for i, l := range t.LocksHeld {
+			if i > 0 {
+				s += ", "
+			}
+			s += l
+		}
+		s += "]"
+	}
+
+	return s
+}
+
+func IdentifyWaitedForSynchronizers(thread *Thread) {
+	if !strings.Contains(thread.ThreadState, "TIMED_WAITING (on object monitor)") &&
+		!strings.Contains(thread.ThreadState, "WAITING (on object monitor)") { // Not waiting for notification
+		return
+	}
+
+	if thread.WantNotificationOn != "" {
+		return
+	}
+
+	if len(thread.ClassicalLocksHeld) != 1 {
+		return
+	}
+
+	thread.WantNotificationOn = thread.ClassicalLocksHeld[0]
 }

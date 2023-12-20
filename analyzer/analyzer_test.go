@@ -1,9 +1,13 @@
 package analyzer
 
-import "testing"
+import (
+	"os"
+	"strings"
+	"testing"
+)
 
 var (
-	testFile = ""
+	testFile = "../dump.txt"
 )
 
 func TestLoadStackFile(t *testing.T) {
@@ -43,4 +47,44 @@ func TestLineExtract(t *testing.T) {
 		t.Log(m)
 		t.FailNow()
 	}
+}
+
+func TestThreadBrief(t *testing.T) {
+	s := `"VCCRM024_QuartzSchedulerThread" #1596 prio=5 os_prio=0 tid=0x00007fd8b44f8000 nid=0x55b in Object.wait() [0x00007fd7eb28c000]
+   java.lang.Thread.State: TIMED_WAITING (on object monitor)
+	at java.lang.Object.wait(Native Method)
+	at org.quartz.core.QuartzSchedulerThread.run(QuartzSchedulerThread.java:427)
+	- locked <0x00000000f630ad88> (a java.lang.Object)`
+
+	lines := strings.Split(s, "\n")
+	thread, err := NewThread(lines[0])
+	if err != nil {
+		t.Log(err)
+		t.FailNow()
+	}
+	for i, l := range lines {
+		if i > 0 {
+			if ok := AddStackLine(thread, l); !ok {
+				t.Log(l)
+				t.FailNow()
+			}
+		}
+	}
+	IdentifyWaitedForSynchronizers(thread)
+
+	t.Logf("%+v", thread)
+	brief := ThreadBrief(thread)
+	t.Log(brief)
+}
+
+func TestStackOutput(t *testing.T) {
+	f, _ := LoadStackFile(testFile)
+	stack, err := NewStack(f)
+	if err != nil {
+		t.Log(err)
+		t.FailNow()
+	}
+	out := StackOutput(stack)
+	// t.Log(out)
+	os.WriteFile("out.log", []byte(out), os.ModePerm)
 }
