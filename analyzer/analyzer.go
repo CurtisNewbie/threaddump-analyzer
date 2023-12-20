@@ -290,32 +290,39 @@ func StackOutput(stack *Stack) string {
 	if stack == nil || len(stack.Threads) < 1 {
 		return ""
 	}
-	SortThreadsByName(stack.Threads)
-	var output = fmt.Sprintf("%d threads found\n\n", len(stack.Threads))
+
+	// stack summary
+	var output = StackSummary(stack)
+
+	// thread briefs
+	SortThreads(stack.Threads)
 	for i, t := range stack.Threads {
-		output += fmt.Sprintf("%d. ", i+1)
+		output += fmt.Sprintf("%-4d ", i+1)
 		output += ThreadBrief(t)
 		output += "\n"
 	}
 	return output
 }
 
-func SortThreadsByName(threads []*Thread) {
+func SortThreads(threads []*Thread) {
 	sort.SliceStable(threads, func(i, j int) bool {
-		return strings.Compare(threads[i].Name, threads[j].Name) < 0
+		t1, t2 := threads[i], threads[j]
+		return strings.Compare(t1.Name, t2.Name) < 0
 	})
 }
 
 func ThreadBrief(t *Thread) string {
-	var brief = ""
-	if t.Group != "" {
-		brief += t.Group
-	}
-	brief += "\""
-	brief += t.Name
-	brief += "\": "
-	brief += ThreadStatusBrief(t)
-	return brief
+	// var brief = ""
+	// if t.Group != "" {
+	// 	brief += t.Group
+	// }
+	// brief += "\""
+	// brief += t.Name
+	// brief += "\": "
+	// brief += ThreadStatusBrief(t)
+	// return brief
+
+	return fmt.Sprintf("%s %-40s : %s", t.Group, t.Name, ThreadStatusBrief(t))
 }
 
 func ThreadStatusBrief(t *Thread) string {
@@ -378,4 +385,47 @@ func IdentifyWaitedForSynchronizers(thread *Thread) {
 	}
 
 	thread.WantNotificationOn = thread.ClassicalLocksHeld[0]
+}
+
+func StackSummary(stack *Stack) string {
+	out := fmt.Sprintf("In total %d threads found\n\n", len(stack.Threads))
+	if len(stack.Threads) < 1 {
+		return out
+	}
+
+	group := map[string][]*Thread{}
+	for _, t := range stack.Threads {
+		factName := ThreadFactoryName(t.Name)
+		if l, ok := group[factName]; ok {
+			group[factName] = append(l, t)
+		} else {
+			group[factName] = []*Thread{t}
+		}
+	}
+
+	added := false
+	for k, v := range group {
+		cnt := len(v)
+		if cnt > 1 {
+			out += fmt.Sprintf("%-40s: has %d threads with similar names\n", k, cnt)
+			added = true
+		}
+	}
+	if added {
+		out += "\n"
+	}
+	return out
+}
+
+func ThreadFactoryName(name string) string {
+	r := []rune(name)
+	for i := len(r) - 1; i >= 0; i-- {
+		if r[i] < '0' || r[i] > '9' {
+			return name
+		}
+		if r[i] == '-' {
+			return string(r[:i])
+		}
+	}
+	return name
 }
