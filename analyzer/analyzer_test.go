@@ -87,7 +87,7 @@ func TestStackOutput(t *testing.T) {
 		t.Log(err)
 		t.FailNow()
 	}
-	out := StackOutput(stack)
+	out := StackOutput(stack, StackOutputOption{})
 	// t.Log(out)
 	os.WriteFile("out.txt", []byte(out), os.ModePerm)
 }

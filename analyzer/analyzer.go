@@ -286,7 +286,11 @@ func ArrayAddUnique(array []string, toAdd string) []string {
 	return array
 }
 
-func StackOutput(stack *Stack) string {
+type StackOutputOption struct {
+	Details bool
+}
+
+func StackOutput(stack *Stack, opt StackOutputOption) string {
 	if stack == nil || len(stack.Threads) < 1 {
 		return ""
 	}
@@ -294,6 +298,10 @@ func StackOutput(stack *Stack) string {
 	// stack summary
 	var output = "Summary:\n\n"
 	output += StackSummary(stack)
+
+	if !opt.Details {
+		return output
+	}
 	output += "------------------------------------\n\n"
 
 	// thread briefs
@@ -425,8 +433,9 @@ func StackSummary(stack *Stack) string {
 	}
 
 	type PercentGroup struct {
-		Percent float64
-		Desc    string
+		Percent  float64
+		Desc     string
+		FactName string
 	}
 
 	rest := 0
@@ -436,15 +445,22 @@ func StackSummary(stack *Stack) string {
 		if cnt > 1 {
 			percent := float64(cnt) / float64(len(stack.Threads)) * 100
 			grouped = append(grouped, PercentGroup{
-				Percent: percent,
-				Desc:    fmt.Sprintf("\t%-77s: %-3d threads with similar names (%.3f%%)", k, cnt, percent),
+				Percent:  percent,
+				Desc:     fmt.Sprintf("\t%-77s: %-3d threads with similar names (%.3f%%)", k, cnt, percent),
+				FactName: k,
 			})
 		} else {
 			rest += 1
 		}
 	}
 
-	sort.SliceStable(grouped, func(i, j int) bool { return grouped[i].Percent > grouped[j].Percent })
+	sort.SliceStable(grouped, func(i, j int) bool {
+		a, b := grouped[i], grouped[j]
+		if a.Percent != b.Percent {
+			return a.Percent > b.Percent
+		}
+		return strings.Compare(a.FactName, b.FactName) < 0
+	})
 	for _, g := range grouped {
 		out += g.Desc
 		out += "\n"

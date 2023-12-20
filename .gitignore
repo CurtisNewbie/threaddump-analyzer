@@ -27,3 +27,4 @@ out.txt
 threaddump-analyzer
 threaddump-analyzer-amd64-linux*
 threaddump-analyzer-arm64-macos*
+localbuild.sh
