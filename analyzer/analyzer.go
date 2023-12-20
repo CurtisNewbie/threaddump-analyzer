@@ -390,19 +390,21 @@ func ThreadStatusBrief(t *Thread) string {
 }
 
 func IdentifyWaitedForSynchronizers(thread *Thread) {
+	if thread.WantNotificationOn != "" {
+		return
+	}
 	if !strings.Contains(thread.ThreadState, "TIMED_WAITING (on object monitor)") &&
 		!strings.Contains(thread.ThreadState, "WAITING (on object monitor)") { // Not waiting for notification
 		return
 	}
 
-	if thread.WantNotificationOn != "" {
+	// object's monitor must be acquired before object.wait
+	// so it must be last synchronized object
+	if len(thread.ClassicalLocksHeld) < 1 {
 		return
 	}
 
-	if len(thread.ClassicalLocksHeld) != 1 {
-		return
-	}
-
+	// the first and the last synchronized object
 	thread.WantNotificationOn = thread.ClassicalLocksHeld[0]
 }
 
@@ -427,6 +429,7 @@ func StackSummary(stack *Stack) string {
 		Desc    string
 	}
 
+	rest := 0
 	grouped := []PercentGroup{}
 	for k, v := range group {
 		cnt := len(v)
@@ -434,8 +437,10 @@ func StackSummary(stack *Stack) string {
 			percent := float64(cnt) / float64(len(stack.Threads)) * 100
 			grouped = append(grouped, PercentGroup{
 				Percent: percent,
-				Desc:    fmt.Sprintf("\t%-77s: has %-3d threads with similar names (%.3f%%)", k, cnt, percent),
+				Desc:    fmt.Sprintf("\t%-77s: %-3d threads with similar names (%.3f%%)", k, cnt, percent),
 			})
+		} else {
+			rest += 1
 		}
 	}
 
@@ -445,6 +450,10 @@ func StackSummary(stack *Stack) string {
 		out += "\n"
 	}
 	if len(grouped) > 0 {
+		if rest > 0 {
+			out += "\n"
+			out += fmt.Sprintf("\t%-77s: %-3d threads (%.3f%%)\n", "Remaining", rest, float64(rest)/float64(len(stack.Threads))*100)
+		}
 		out += "\n"
 	}
 	return out

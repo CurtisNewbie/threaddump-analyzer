@@ -50,11 +50,14 @@ func TestLineExtract(t *testing.T) {
 }
 
 func TestThreadBrief(t *testing.T) {
-	s := `"VCCRM024_QuartzSchedulerThread" #1596 prio=5 os_prio=0 tid=0x00007fd8b44f8000 nid=0x55b in Object.wait() [0x00007fd7eb28c000]
+	s := `"JobExecutor[org.camunda.bpm.engine.spring.components.jobexecutor.SpringJobExecutor]" #225 prio=5 os_prio=0 tid=0x00007f724f2b0800 nid=0xe8 in Object.wait() [0x00007f7025fea000]
    java.lang.Thread.State: TIMED_WAITING (on object monitor)
 	at java.lang.Object.wait(Native Method)
-	at org.quartz.core.QuartzSchedulerThread.run(QuartzSchedulerThread.java:427)
-	- locked <0x00000000f630ad88> (a java.lang.Object)`
+	at org.camunda.bpm.engine.impl.jobexecutor.AcquireJobsRunnable.suspendAcquisition(AcquireJobsRunnable.java:51)
+	- locked <0x00000007134b90c8> (a java.lang.Object)
+	at org.camunda.bpm.engine.impl.jobexecutor.SequentialJobAcquisitionRunnable.run(SequentialJobAcquisitionRunnable.java:104)
+	- locked <0x00000007134b90d8> (a org.camunda.bpm.engine.impl.jobexecutor.SequentialJobAcquisitionRunnable)
+	at java.lang.Thread.run(Thread.java:750)`
 
 	lines := strings.Split(s, "\n")
 	thread, err := NewThread(lines[0])
@@ -86,7 +89,7 @@ func TestStackOutput(t *testing.T) {
 	}
 	out := StackOutput(stack)
 	// t.Log(out)
-	os.WriteFile("out.log", []byte(out), os.ModePerm)
+	os.WriteFile("out.txt", []byte(out), os.ModePerm)
 }
 
 func TestThreadFactoryName(t *testing.T) {
