@@ -11,10 +11,11 @@ import (
 var (
 	StackDump  = flag.String("file", "", "path to stack dump")
 	Details    = flag.Bool("details", false, "print all details")
-	ReportFile = flag.Bool("report", false, "output report file")
+	ReportFile = flag.Bool("report", false, "output report file including all the details")
 )
 
 func main() {
+	fmt.Printf("\nthreaddump-analyzer %v, github.com/CurtisNewbie/threaddump-analyzer \n\n", analyzer.Version)
 	flag.Parse()
 
 	if StackDump == nil || *StackDump == "" {
