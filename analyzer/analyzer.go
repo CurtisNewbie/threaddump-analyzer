@@ -304,6 +304,22 @@ func StackOutput(stack *Stack) string {
 		output += ThreadBrief(t)
 		output += "\n"
 	}
+
+	output += "\n"
+	output += "------------------------------------\n\n"
+	output += "Synchronizers:\n\n"
+	locks := map[string]struct{}{}
+	for _, t := range stack.Threads {
+		for _, sy := range t.LocksHeld {
+			if _, ok := locks[sy]; ok {
+				continue
+			}
+			locks[sy] = struct{}{}
+			output += fmt.Sprintf("\t%s %s", sy, t.SynchronizerClasses[sy])
+			output += "\n"
+		}
+	}
+
 	return output
 }
 
@@ -325,7 +341,7 @@ func ThreadBrief(t *Thread) string {
 	// brief += ThreadStatusBrief(t)
 	// return brief
 
-	return fmt.Sprintf("%s %-40s : %s", t.Group, t.Name, ThreadStatusBrief(t))
+	return fmt.Sprintf("%s %-70s : %s", t.Group, t.Name, ThreadStatusBrief(t))
 }
 
 func ThreadStatusBrief(t *Thread) string {
@@ -418,15 +434,12 @@ func StackSummary(stack *Stack) string {
 			percent := float64(cnt) / float64(len(stack.Threads)) * 100
 			grouped = append(grouped, PercentGroup{
 				Percent: percent,
-				Desc:    fmt.Sprintf("\t%-40s: has %-3d threads with similar names (%.2f%%)", k, cnt, percent),
+				Desc:    fmt.Sprintf("\t%-77s: has %-3d threads with similar names (%.3f%%)", k, cnt, percent),
 			})
 		}
 	}
 
-	sort.SliceStable(grouped, func(i, j int) bool {
-		return grouped[i].Percent > grouped[j].Percent
-	})
-
+	sort.SliceStable(grouped, func(i, j int) bool { return grouped[i].Percent > grouped[j].Percent })
 	for _, g := range grouped {
 		out += g.Desc
 		out += "\n"
