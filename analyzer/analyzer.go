@@ -300,7 +300,7 @@ func StackOutput(stack *Stack) string {
 	SortThreads(stack.Threads)
 	output += "Threads:\n\n"
 	for i, t := range stack.Threads {
-		output += fmt.Sprintf("%-4d ", i+1)
+		output += fmt.Sprintf("\t%-4d ", i+1)
 		output += ThreadBrief(t)
 		output += "\n"
 	}
