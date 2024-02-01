@@ -315,6 +315,28 @@ func StackOutput(stack *Stack, opt StackOutputOption) string {
 
 	output += "\n"
 	output += "------------------------------------\n\n"
+	output += "Noticeable Awaiting Notifications (>=5):\n\n"
+	sigAwait := map[string]int{}
+	for _, t := range stack.Threads {
+		if t.WantNotificationOn != "" {
+			if c, ok := sigAwait[t.WantNotificationOn]; ok {
+				sigAwait[t.WantNotificationOn] = c + 1
+			} else {
+				sigAwait[t.WantNotificationOn] = 1
+			}
+		}
+	}
+	if len(sigAwait) > 0 {
+		for k, v := range sigAwait {
+			if v > 4 {
+				output += fmt.Sprintf("\t%-2d threads awaiting notifications on %s", v, k)
+				output += "\n"
+			}
+		}
+	}
+
+	output += "\n"
+	output += "------------------------------------\n\n"
 	output += "Synchronizers:\n\n"
 	locks := map[string]struct{}{}
 	for _, t := range stack.Threads {
