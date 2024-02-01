@@ -302,20 +302,11 @@ func StackOutput(stack *Stack, opt StackOutputOption) string {
 	if !opt.Details {
 		return output
 	}
-	output += "------------------------------------\n\n"
-
-	// thread briefs
-	SortThreads(stack.Threads)
-	output += "Threads:\n\n"
-	for i, t := range stack.Threads {
-		output += fmt.Sprintf("\t%-4d ", i+1)
-		output += ThreadBrief(t)
-		output += "\n"
-	}
 
 	output += "\n"
 	output += "------------------------------------\n\n"
-	output += "Noticeable Awaiting Notifications (>=5):\n\n"
+	threashold := 10
+	output += fmt.Sprintf("Noticeable Awaiting Notifications (>=%d):\n\n", threashold)
 	sigAwait := map[string][]string{}
 	for _, t := range stack.Threads {
 		if t.WantNotificationOn != "" {
@@ -326,15 +317,43 @@ func StackOutput(stack *Stack, opt StackOutputOption) string {
 			}
 		}
 	}
+
 	if len(sigAwait) > 0 {
+		type AwaitInf = struct {
+			AwaitOn string
+			Names   []string
+		}
+		awaits := []AwaitInf{}
 		for k, names := range sigAwait {
-			if len(names) > 4 {
-				output += fmt.Sprintf("\t%-2d threads awaiting notifications on %s\n", len(names), k)
-				for _, s := range names {
-					output += fmt.Sprintf("\t   - %s\n", s)
-				}
+			if len(names) >= threashold {
+				awaits = append(awaits, AwaitInf{
+					Names:   names,
+					AwaitOn: k,
+				})
 			}
 		}
+		sort.SliceStable(awaits, func(i, j int) bool { return len(awaits[i].Names) > len(awaits[j].Names) })
+
+		for i, aw := range awaits {
+			if i > 0 {
+				output += "\n"
+			}
+			output += fmt.Sprintf("\t%-2d threads awaiting notification on %s\n", len(aw.Names), aw.AwaitOn)
+			for _, s := range aw.Names {
+				output += fmt.Sprintf("\t   - %s\n", s)
+			}
+		}
+	}
+
+	// thread briefs
+	SortThreads(stack.Threads)
+
+	output += "\n------------------------------------\n\n"
+	output += "Threads:\n\n"
+	for i, t := range stack.Threads {
+		output += fmt.Sprintf("\t%-4d ", i+1)
+		output += ThreadBrief(t)
+		output += "\n"
 	}
 
 	output += "\n"
